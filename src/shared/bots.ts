@@ -24,13 +24,17 @@ interface Profile {
   grenade: number;
   /** Seconds the bot keeps hunting a target it lost sight of. */
   memory: number;
+  /** Rifle fire pattern: seconds of fire, then seconds of pause. */
+  burst: [number, number];
+  /** Share of the time (0..1) the bot keeps moving while it fights. */
+  strafe: number;
 }
 
 export const PROFILES: Record<Difficulty, Profile> = {
-  easy: { reaction: [0.55, 0.85], aimSpread: 2.3, trackLag: 0.32, turn: 4.5, vision: 22, aggression: 0.35, dodge: 0.08, lead: 0, grenade: 0.03, memory: 2.5 },
-  normal: { reaction: [0.32, 0.52], aimSpread: 1.65, trackLag: 0.22, turn: 7.5, vision: 26, aggression: 0.55, dodge: 0.25, lead: 0.4, grenade: 0.07, memory: 4 },
-  hard: { reaction: [0.2, 0.32], aimSpread: 1.25, trackLag: 0.15, turn: 11, vision: 30, aggression: 0.7, dodge: 0.5, lead: 0.75, grenade: 0.11, memory: 6 },
-  elite: { reaction: [0.12, 0.2], aimSpread: 1.0, trackLag: 0.09, turn: 16, vision: 34, aggression: 0.82, dodge: 0.75, lead: 1, grenade: 0.15, memory: 8 },
+  easy: { reaction: [0.75, 1.1], aimSpread: 2.9, trackLag: 0.4, turn: 4, vision: 20, aggression: 0.3, dodge: 0, lead: 0, grenade: 0.02, memory: 2, burst: [0.3, 0.75], strafe: 0.3 },
+  normal: { reaction: [0.5, 0.75], aimSpread: 2.2, trackLag: 0.3, turn: 6, vision: 24, aggression: 0.5, dodge: 0.12, lead: 0.25, grenade: 0.05, memory: 3.5, burst: [0.45, 0.5], strafe: 0.55 },
+  hard: { reaction: [0.3, 0.45], aimSpread: 1.6, trackLag: 0.2, turn: 9, vision: 28, aggression: 0.65, dodge: 0.4, lead: 0.6, grenade: 0.09, memory: 5, burst: [0.65, 0.3], strafe: 0.8 },
+  elite: { reaction: [0.15, 0.25], aimSpread: 1.1, trackLag: 0.11, turn: 15, vision: 34, aggression: 0.82, dodge: 0.7, lead: 1, grenade: 0.14, memory: 8, burst: [0.9, 0.15], strafe: 1 },
 };
 
 export const BOT_NAMES = ['Rivet', 'Sprocket', 'Cinder', 'Gasket', 'Torque', 'Flux', 'Ballast', 'Ratchet', 'Piston', 'Solder', 'Dynamo'];
@@ -142,13 +146,13 @@ export class BotBrain {
       const dist = Math.hypot(target.x - p.x, target.y - p.y);
       const onTarget = Math.abs(angleDiff(this.aim, desired)) < 0.1 + w.spread;
       const inRange = dist < w.range[2] * 1.15;
-      // Lower difficulties fire the rifle in bursts.
+      // Lower difficulties fire in shorter bursts with longer pauses.
       if (now > this.burstUntil && now > this.pauseUntil) {
-        this.burstUntil = now + 0.3 + this.aggression * 0.6;
-        this.pauseUntil = this.burstUntil + (1 - this.aggression) * 0.5;
+        const [on, off] = this.profile.burst;
+        this.burstUntil = now + on * (0.8 + this.rand() * 0.4);
+        this.pauseUntil = this.burstUntil + off * (0.8 + this.rand() * 0.4);
       }
-      const bursting = w.id !== 'rifle' || now <= this.burstUntil;
-      if (onTarget && inRange && bursting) b |= Btn.Fire;
+      if (onTarget && inRange && now <= this.burstUntil) b |= Btn.Fire;
     }
     this.reactionLeft -= DT;
 
@@ -346,7 +350,7 @@ export class BotBrain {
       if (trying && moved < 0.35) {
         this.stuck++;
         this.unstickUntil = now + 0.45;
-        this.strafeDir = -this.strafeDir;
+        this.strafeDir = this.strafeDir > 0 ? -1 : 1;
         this.repathAt = 0;
         if (this.stuck >= 3) {
           this.pickRoamGoal(world, p);
@@ -422,7 +426,8 @@ export class BotBrain {
       const [minR, ideal] = w.range;
       const push = ideal * (1.2 - this.aggression * 0.5);
       if (now > this.strafeUntil) {
-        this.strafeDir = this.rand() < 0.5 ? -1 : 1;
+        // Lower difficulties often stand still to shoot.
+        this.strafeDir = this.rand() >= this.profile.strafe ? 0 : this.rand() < 0.5 ? -1 : 1;
         this.strafeUntil = now + 0.5 + this.rand() * 1.1;
       }
       if (dist > push + 3) {
@@ -438,7 +443,7 @@ export class BotBrain {
         mx = this.strafeDir;
       }
       // Hop and jet to stay hard to hit, more on higher difficulty.
-      if (p.grounded && this.rand() < this.aggression * 0.02) up = true;
+      if (p.grounded && this.rand() < this.aggression * this.profile.strafe * 0.02) up = true;
       if (target.y > p.y + 3 && p.fuel > 30) up = true;
     } else if (this.goal) {
       const f = this.followPath(world, p, now);

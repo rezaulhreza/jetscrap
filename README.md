@@ -181,7 +181,7 @@ The game runs at a fixed 60 ticks per second. `World` owns players, projectiles,
 
 Each bot is a finite-state machine with the states roam, collect, engage, hunt and retreat. Bots only know about enemies they can see (line of sight within a vision range) or hear (gunfire and jetpacks nearby). They remember a lost target for a few seconds. They path with A* over a navigation grid that prefers walking to flying, avoid hazards, detect when they are stuck, dodge incoming fire and grenades, pick up better weapons and health, and switch weapons by range.
 
-Difficulty changes reaction time, aim error and turn speed, target leading, vision range, aggression, dodging and grenade use. It never changes bot health or damage. Each bot also gets a small random personality offset.
+Difficulty changes reaction time, aim error and turn speed, target leading, vision range, aggression, burst length, how much a bot moves while it fights, dodging and grenade use. It never changes bot health or damage. As a guide, a test duel with touchpad-like aim wins most fights against Easy bots and about half against Normal bots. Each bot also gets a small random personality offset.
 
 ## Tests
 

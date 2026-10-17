@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { Btn, PLAYER_H, PLAYER_W, RESPAWN_TIME, TICK_RATE } from '../src/shared/constants';
+import { Btn, DT, PLAYER_H, PLAYER_W, RESPAWN_TIME, SHOULDER_Y, TICK_RATE } from '../src/shared/constants';
 import { MAPS } from '../src/shared/maps';
 import { navFor } from '../src/shared/nav';
-import { boxOverlapsRect, groundBelow } from '../src/shared/physics';
+import { boxOverlapsRect, groundBelow, lineOfSight } from '../src/shared/physics';
+import { mulberry32 } from '../src/shared/rng';
 import { World } from '../src/shared/sim';
-import { DEFAULT_SETTINGS, type InputFrame, type MatchSettings } from '../src/shared/types';
+import { DEFAULT_SETTINGS, type Difficulty, type InputFrame, type MatchSettings } from '../src/shared/types';
 
 const settings = (over: Partial<MatchSettings> = {}): MatchSettings => ({ ...DEFAULT_SETTINGS, bots: 0, ...over });
 
@@ -270,5 +271,84 @@ describe('bot aim', () => {
     const elite = hitRate('elite', false);
     expect(easy).toBeLessThan(0.6);
     expect(elite).toBeGreaterThan(easy + 0.15);
+  });
+});
+
+describe('bot difficulty', () => {
+  /**
+   * One duel on open ground between a bot and a scripted human with touchpad-like aim:
+   * it aims 0.3 s behind the bot with a drifting error, needs 0.6 s to react and seldom
+   * strafes. Returns the winner of the first kill.
+   */
+  function duel(diff: Difficulty, seed: number): 'human' | 'bot' | 'draw' {
+    const w = new World(settings({ killLimit: 999, timeLimit: 600, difficulty: diff }), seed);
+    const rand = mulberry32(seed * 7 + 1);
+    const h = w.addPlayer({ name: 'Human' })!;
+    const b = w.addPlayer({ name: 'Bot', bot: diff })!;
+    run(w, 3.4);
+    Object.assign(h, { x: 18, y: 2, vx: 0, vy: 0, protect: 0 });
+    Object.assign(b, { x: 30, y: 2, vx: 0, vy: 0, protect: 0 });
+    const seen: { x: number; y: number }[] = [];
+    let off = 0;
+    let offTarget = 0;
+    let nextOff = 0;
+    let seenAt = -1;
+    let mx = 0;
+    let moveUntil = 0;
+    for (let t = 0; t < 12 * TICK_RATE; t++) {
+      const now = t * DT;
+      const visible = lineOfSight(w.map, h.x, h.y + 1.55, b.x, b.y + 1.0);
+      let buttons = 0;
+      let aim = b.x > h.x ? 0 : Math.PI;
+      if (visible) {
+        if (seenAt < 0) seenAt = now;
+        seen.push({ x: b.x, y: b.y });
+        if (now >= nextOff) {
+          offTarget = (rand() * 2 - 1) * 2;
+          nextOff = now + 0.25 + rand() * 0.3;
+        }
+        off += (offTarget - off) * Math.min(1, DT * 6);
+        const s = seen[Math.max(0, seen.length - 1 - Math.round(0.3 / DT))];
+        const lx = s.x - h.x;
+        const ly = s.y + 1.05 - (h.y + SHOULDER_Y);
+        const d = Math.hypot(lx, ly) || 1;
+        aim = Math.atan2(ly + (lx / d) * off, lx - (ly / d) * off);
+        if (now - seenAt > 0.6) buttons |= Btn.Fire;
+      } else {
+        seenAt = -1;
+      }
+      if (now > moveUntil) {
+        mx = rand() < 0.2 ? (rand() < 0.5 ? -1 : 1) : 0;
+        moveUntil = now + 0.4 + rand() * 0.6;
+      }
+      if (!visible) mx = b.x > h.x ? 1 : -1;
+      w.setInput(h.id, { seq: t, b: buttons, mx, aim });
+      w.step();
+      for (const e of w.drainEvents()) if (e.k === 'kill') return e.p === b.id ? 'human' : 'bot';
+    }
+    return 'draw';
+  }
+
+  function humanWinRate(diff: Difficulty): number {
+    let human = 0;
+    let bot = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      const r = duel(diff, seed);
+      if (r === 'human') human++;
+      if (r === 'bot') bot++;
+    }
+    return human / Math.max(1, human + bot);
+  }
+
+  it('lets a player with touchpad aim win most duels on easy and about half on normal', () => {
+    const easy = humanWinRate('easy');
+    const normal = humanWinRate('normal');
+    const hard = humanWinRate('hard');
+    const elite = humanWinRate('elite');
+    expect(easy).toBeGreaterThan(0.8);
+    expect(normal).toBeGreaterThan(0.35);
+    expect(normal).toBeLessThan(0.75);
+    expect(hard).toBeLessThan(normal - 0.15);
+    expect(elite).toBeLessThan(hard);
   });
 });
