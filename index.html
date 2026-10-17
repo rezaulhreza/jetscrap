@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Jetscrap: a side-view jetpack shooter. Fight bots alone or friends in private rooms." />
+    <meta name="theme-color" content="#1e2329" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Jetscrap</title>
+  </head>
+  <body>
+    <canvas id="scene" aria-hidden="true"></canvas>
+    <div id="labels" aria-hidden="true"></div>
+
+    <!-- Loading and fatal errors -->
+    <div id="boot" class="boot">
+      <p id="boot-text">Loading Jetscrap…</p>
+    </div>
+
+    <!-- Menus -->
+    <main id="menus" class="menus" hidden>
+      <section class="screen" data-screen="main" aria-labelledby="title">
+        <h1 id="title" class="logo">Jetscrap</h1>
+        <p class="tagline">Jetpacks, salvage guns and a lot of falling. Fight bots, or bring friends.</p>
+        <label class="field callsign">
+          <span>Your name</span>
+          <input id="name" class="name-input" maxlength="16" autocomplete="nickname" spellcheck="false" />
+        </label>
+        <nav class="stack">
+          <button class="plate primary" data-go="solo">Play solo</button>
+          <button class="plate" data-go="online">Play online</button>
+          <button class="plate quiet" data-go="controls">Controls</button>
+          <button class="plate quiet" data-go="settings">Settings</button>
+        </nav>
+      </section>
+
+      <section class="screen wide" data-screen="solo" hidden aria-labelledby="solo-title">
+        <h2 id="solo-title">Solo match</h2>
+        <div id="solo-setup" class="setup"></div>
+        <div class="row actions">
+          <button class="plate primary" id="solo-start">Start match</button>
+          <button class="plate quiet" data-go="main">Back</button>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="online" hidden aria-labelledby="online-title">
+        <h2 id="online-title">Play online</h2>
+        <p class="hint">Create a private room and send the code to your friends. Rooms run on our server, so everyone sees the same match.</p>
+        <label class="field callsign">
+          <span>Your name</span>
+          <input id="name-online" class="name-input" maxlength="16" autocomplete="nickname" spellcheck="false" />
+        </label>
+        <button class="plate primary" id="create-room">Create room</button>
+        <form id="join-form" class="join">
+          <label class="field">
+            <span>Room code</span>
+            <input id="join-code" maxlength="5" autocomplete="off" spellcheck="false" placeholder="ABCDE" />
+          </label>
+          <button class="plate" type="submit">Join room</button>
+        </form>
+        <p id="online-status" class="status" role="status"></p>
+        <button class="plate quiet" data-go="main">Back</button>
+      </section>
+
+      <section class="screen wide" data-screen="lobby" hidden aria-labelledby="lobby-title">
+        <div class="lobby-head">
+          <h2 id="lobby-title">Room <span id="lobby-code" class="code"></span></h2>
+          <button class="plate small" id="copy-link">Copy invite link</button>
+        </div>
+        <p id="lobby-status" class="status" role="status"></p>
+        <div class="row lobby-actions">
+          <button class="plate primary" id="lobby-start">Start match</button>
+          <button class="plate quiet" id="lobby-leave">Leave room</button>
+        </div>
+        <div class="lobby-grid">
+          <div>
+            <h3>Players</h3>
+            <div id="lobby-teams"></div>
+          </div>
+          <div>
+            <h3>Match settings</h3>
+            <div id="lobby-setup" class="setup compact"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen wide" data-screen="controls" hidden aria-labelledby="controls-title">
+        <h2 id="controls-title">Controls</h2>
+        <dl class="keys">
+          <div><dt><kbd>A</kbd> <kbd>D</kbd></dt><dd>Run left and right</dd></div>
+          <div><dt><kbd>W</kbd> or <kbd>Space</kbd></dt><dd>Jump. Hold in the air to fire the jetpack</dd></div>
+          <div><dt><kbd>S</kbd></dt><dd>Drop through thin platforms</dd></div>
+          <div><dt>Mouse</dt><dd>Aim</dd></div>
+          <div><dt>Left click</dt><dd>Shoot (hold for automatic fire)</dd></div>
+          <div><dt>Right click or <kbd>G</kbd></dt><dd>Throw a grenade</dd></div>
+          <div><dt><kbd>R</kbd></dt><dd>Reload</dd></div>
+          <div><dt><kbd>Q</kbd> or mouse wheel</dt><dd>Switch between your gun and pistol</dd></div>
+          <div><dt><kbd>E</kbd></dt><dd>Pick up the weapon you stand on (swaps your gun)</dd></div>
+          <div><dt><kbd>Tab</kbd></dt><dd>Show the scoreboard</dd></div>
+          <div><dt><kbd>Esc</kbd></dt><dd>Pause and settings</dd></div>
+        </dl>
+        <p class="hint">Health, armour, ammunition, grenades and power-ups are collected by walking over them. Overdrive gives 50% more damage; Haste gives speed and unlimited fuel. Both last 10 seconds.</p>
+        <button class="plate quiet" data-back>Back</button>
+      </section>
+
+      <section class="screen" data-screen="settings" hidden aria-labelledby="settings-title">
+        <h2 id="settings-title">Settings</h2>
+        <div id="settings-form" class="setup"></div>
+        <button class="plate quiet" data-back>Back</button>
+      </section>
+    </main>
+
+    <!-- In-match overlays -->
+    <div id="hud" class="hud" hidden>
+      <div class="hud-top">
+        <div id="hud-score" class="score"></div>
+        <div id="hud-timer" class="timer">5:00</div>
+      </div>
+      <ol id="feed" class="feed" aria-live="polite"></ol>
+      <div id="hud-net" class="net"></div>
+      <div class="vitals">
+        <div class="bar hp"><i id="hp-fill"></i><b id="hp-text">100</b></div>
+        <div class="bar armor"><i id="armor-fill"></i><b id="armor-text">0</b></div>
+        <div class="bar fuel"><i id="fuel-fill"></i></div>
+        <div id="powerups" class="powerups"></div>
+      </div>
+      <div class="weapon">
+        <div id="weapon-name" class="wname"></div>
+        <div class="ammo"><b id="ammo-mag">30</b><span id="ammo-reserve">90</span></div>
+        <div class="loadout"><span id="slot-primary"></span><span id="slot-secondary"></span><span id="grenades"></span></div>
+        <div id="reload" class="reload" hidden><i></i></div>
+      </div>
+      <div id="toast" class="toast" role="status"></div>
+      <div id="centre-msg" class="centre-msg"></div>
+      <div id="countdown" class="countdown"></div>
+      <div id="vignette" class="vignette"></div>
+      <div id="crosshair" class="crosshair"><i></i><i></i><i></i><i></i><span id="hitmark" class="hitmark"></span></div>
+      <div id="dmg-nums"></div>
+      <div id="fps" class="fps" hidden></div>
+    </div>
+
+    <div id="scoreboard" class="overlay board" hidden>
+      <div class="panel">
+        <h2 id="board-title">Scoreboard</h2>
+        <div id="board-body"></div>
+      </div>
+    </div>
+
+    <div id="pause" class="overlay" hidden>
+      <div class="panel narrow">
+        <h2>Paused</h2>
+        <p id="pause-note" class="hint"></p>
+        <nav class="stack">
+          <button class="plate primary" id="resume">Resume</button>
+          <button class="plate" id="pause-settings">Settings</button>
+          <button class="plate" id="pause-controls">Controls</button>
+          <button class="plate quiet" id="quit">Leave match</button>
+        </nav>
+      </div>
+    </div>
+
+    <div id="results" class="overlay" hidden>
+      <div class="panel">
+        <h2 id="results-title">Match over</h2>
+        <p id="results-sub" class="hint"></p>
+        <div id="results-body"></div>
+        <div class="row actions">
+          <button class="plate primary" id="rematch">Rematch</button>
+          <button class="plate" id="to-lobby" hidden>Back to lobby</button>
+          <button class="plate quiet" id="results-quit">Main menu</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/client/main.ts"></script>
+  </body>
+</html>
