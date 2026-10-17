@@ -115,8 +115,25 @@ export function raySolids(map: MapDef, x0: number, y0: number, x1: number, y1: n
   return best;
 }
 
+/**
+ * Like `raySolids`, but one-way platforms also stop the ray, from either side. Bullets,
+ * rockets, blasts and sight use this. A platform that contains the start point is skipped,
+ * so a player who jumps or drops through a platform can still shoot.
+ */
+export function rayShot(map: MapDef, x0: number, y0: number, x1: number, y1: number): number {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  let best = raySolids(map, x0, y0, x1, y1);
+  for (const r of map.platforms) {
+    if (pointInRect(x0, y0, r)) continue;
+    const t = segmentRect(x0, y0, dx, dy, r.x, r.y, r.w, r.h);
+    if (t >= 0 && t < best) best = t;
+  }
+  return best;
+}
+
 export function lineOfSight(map: MapDef, x0: number, y0: number, x1: number, y1: number): boolean {
-  return raySolids(map, x0, y0, x1, y1) >= 1;
+  return rayShot(map, x0, y0, x1, y1) >= 1;
 }
 
 export function pointInSolid(map: MapDef, x: number, y: number): boolean {

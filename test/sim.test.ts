@@ -94,6 +94,28 @@ describe('combat', () => {
     expect(shots).toBeLessThanOrEqual(11);
   });
 
+  it('stops bullets at one-way platforms from below and above', () => {
+    const { w, a, b } = duel();
+    const plat = w.map.platforms.find((r) => r.y > 15 && r.y < 21)!;
+    const top = plat.y + plat.h;
+    const x = plat.x + plat.w / 2;
+    const shoot = (from: typeof a, to: typeof a, aim: number) => {
+      to.hp = 100;
+      for (let i = 0; i < TICK_RATE; i++) {
+        w.setInput(from.id, { seq: i, b: Btn.Fire, mx: 0, aim });
+        Object.assign(from, { x, vx: 0 });
+        Object.assign(to, { x, vx: 0 });
+        w.step();
+        w.drainEvents();
+      }
+      return to.hp;
+    };
+    Object.assign(a, { y: groundBelow(w.map, x, plat.y - 0.1), vy: 0 });
+    Object.assign(b, { y: top, vy: 0 });
+    expect(shoot(a, b, Math.PI / 2)).toBe(100);
+    expect(shoot(b, a, -Math.PI / 2)).toBe(100);
+  });
+
   it('kills, credits the killer, drops the weapon and respawns the victim', () => {
     const { w, a, b } = duel();
     let killed = false;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { MapDef } from '../../shared/maps';
-import { raySolids } from '../../shared/physics';
+import { rayShot } from '../../shared/physics';
 import type { WeaponId } from '../../shared/weapons';
 
 interface Particle {
@@ -360,7 +360,7 @@ export class Effects {
       let dy = t.vy * dt;
       let end = t.life <= 0;
       if (this.map && !end) {
-        const f = raySolids(this.map, t.x, t.y, t.x + dx, t.y + dy);
+        const f = rayShot(this.map, t.x, t.y, t.x + dx, t.y + dy);
         if (f < 1) {
           dx *= f;
           dy *= f;

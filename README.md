@@ -166,7 +166,7 @@ worker/index.ts    Cloudflare Worker entry and the RoomObject Durable Object
 
 ### Simulation
 
-The game runs at a fixed 60 ticks per second. `World` owns players, projectiles, pickups and the match. It records presentation events (shots, hits, kills, explosions) that the renderer, HUD and audio consume. Collision uses axis-aligned boxes: solids block from every side; one-way platforms only block from above.
+The game runs at a fixed 60 ticks per second. `World` owns players, projectiles, pickups and the match. It records presentation events (shots, hits, kills, explosions) that the renderer, HUD and audio consume. Collision uses axis-aligned boxes: solids block from every side; one-way platforms only block a body that falls onto them from above. Bullets, rockets, blasts and bot sight stop at solids and at platforms.
 
 ### Multiplayer
 

@@ -1,6 +1,6 @@
 import { Btn, DT, GRENADE_RADIUS, MAX_ARMOR, MAX_HEALTH, PLAYER_H, PLAYER_W, SHOULDER_Y } from './constants';
 import { navFor, type NavGrid, type Waypoint } from './nav';
-import { lineOfSight, onPlatform } from './physics';
+import { lineOfSight, onPlatform, raySolids } from './physics';
 import type { World } from './sim';
 import type { Difficulty, InputFrame, PickupState, Player } from './types';
 import { WEAPONS } from './weapons';
@@ -507,6 +507,7 @@ export class BotBrain {
 
   private blockedAhead(world: World, p: Player, mx: number): boolean {
     const x = p.x + mx * (PLAYER_W / 2 + 0.2);
-    return !lineOfSight(world.map, p.x, p.y + 0.3, x, p.y + 0.3) || !lineOfSight(world.map, p.x, p.y + PLAYER_H - 0.2, x, p.y + PLAYER_H - 0.2);
+    // Platforms do not block sideways movement, so only solids count here.
+    return raySolids(world.map, p.x, p.y + 0.3, x, p.y + 0.3) < 1 || raySolids(world.map, p.x, p.y + PLAYER_H - 0.2, x, p.y + PLAYER_H - 0.2) < 1;
   }
 }

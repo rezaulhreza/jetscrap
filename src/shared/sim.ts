@@ -6,7 +6,7 @@ import {
   SELF_DAMAGE_MULT, SHOULDER_Y, SPAWN_PROTECT,
 } from './constants';
 import { getMap, type ItemKind, type MapDef } from './maps';
-import { boxOverlapsRect, raySolids, segmentRect } from './physics';
+import { boxOverlapsRect, rayShot, segmentRect } from './physics';
 import { newPlayer, spawnPlayer, stepPlayer, type PlayerCtx } from './player';
 import { mulberry32 } from './rng';
 import type {
@@ -329,7 +329,7 @@ export class World {
   private stepBullet(pr: Projectile): boolean {
     const dx = pr.vx * DT;
     const dy = pr.vy * DT;
-    let t = raySolids(this.map, pr.x, pr.y, pr.x + dx, pr.y + dy);
+    let t = rayShot(this.map, pr.x, pr.y, pr.x + dx, pr.y + dy);
     const wallT = t;
     let target: Player | null = null;
     for (const p of this.players.values()) {
@@ -430,7 +430,7 @@ export class World {
       const cy = p.y + PLAYER_H / 2;
       const d = Math.hypot(cx - x, cy - y);
       if (d > reach) continue;
-      if (raySolids(this.map, x, y, cx, cy) < 1 && raySolids(this.map, x, y, cx, p.y + PLAYER_H - 0.1) < 1) continue;
+      if (rayShot(this.map, x, y, cx, cy) < 1 && rayShot(this.map, x, y, cx, p.y + PLAYER_H - 0.1) < 1) continue;
       const f = 1 - d / reach;
       const nx = d > 0.01 ? (cx - x) / d : 0;
       const ny = d > 0.01 ? (cy - y) / d : 1;
