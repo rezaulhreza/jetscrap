@@ -16,6 +16,7 @@ import { Input } from './input';
 import { NetClient, type NetStatus } from './net';
 import { GameRenderer } from './render/renderer';
 import { LocalSession, type Session } from './session';
+import { TouchControls, isTouchDevice } from './touch';
 import { clientId, loadPrefs, savePrefs, type Prefs } from './settings';
 import { $, renderMembers, renderSettingsForm, renderSetup, showScreen } from './ui';
 
@@ -25,6 +26,10 @@ class App {
   private prefs: Prefs = loadPrefs();
   private renderer: GameRenderer;
   private input: Input;
+  private touch: TouchControls;
+  /** Phones and tablets use on-screen sticks instead of the mouse. */
+  private touchMode = isTouchDevice();
+  private portrait = matchMedia('(orientation: portrait)');
   private sound = new Sound();
   private hud = new Hud();
   session: Session | null = null;
@@ -47,6 +52,18 @@ class App {
       pause: () => this.openPause(),
       scoreboard: (show) => this.toggleBoard(show),
     });
+    this.touch = new TouchControls({
+      pause: () => this.openPause(),
+      scoreboard: () => this.toggleBoard(!this.boardOpen),
+    });
+    this.setTouchMode(this.touchMode);
+    // A hybrid device switches to touch controls the first time a finger is used.
+    addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch' && !this.touchMode) this.setTouchMode(true);
+      // Fullscreen and the landscape lock need a user gesture; retry on taps during a match.
+      if (this.touchMode && this.session && !document.fullscreenElement) this.goLandscape();
+    });
+    this.portrait.addEventListener('change', () => this.applyControls());
     this.applyPrefs();
     this.bindMenus();
     this.startAttract();
@@ -69,6 +86,43 @@ class App {
     $('boot').hidden = true;
     $('menus').hidden = false;
     requestAnimationFrame((t) => this.loop(t));
+  }
+
+  private setTouchMode(on: boolean): void {
+    this.touchMode = on;
+    document.body.classList.toggle('touch', on);
+    this.hud.touch = on;
+    this.applyControls();
+  }
+
+  /** Fullscreen plus a landscape lock where the browser supports it (Android). iOS ignores both. */
+  private goLandscape(): void {
+    const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+    document.documentElement
+      .requestFullscreen?.()
+      .then(() => orientation.lock?.('landscape'))
+      .catch(() => undefined);
+  }
+
+  /** True while a touch device is held upright during a match: the rotate screen covers the game. */
+  private get rotateBlocked(): boolean {
+    return this.touchMode && this.portrait.matches && !!this.session;
+  }
+
+  /** Enables controls only during active play, and holds a solo match while the device is upright. */
+  private applyControls(): void {
+    if (!this.session) return;
+    const blocked = this.rotateBlocked;
+    if (this.session instanceof LocalSession) this.session.paused = this.paused || blocked;
+    this.setControls(!blocked && !this.paused && !this.resultsShown);
+  }
+
+  /** Turns gameplay input on or off for both the mouse/keyboard and the touch sticks. */
+  private setControls(on: boolean): void {
+    this.input.setEnabled(on);
+    this.touch.show(on && this.touchMode);
+    if (on && !this.touchMode) this.input.lock();
+    if (!on) this.input.unlock();
   }
 
   // ------------------------------------------------------------------ menus
@@ -334,18 +388,18 @@ class App {
     this.resultsShown = false;
     if (this.endTimer) clearTimeout(this.endTimer);
     document.body.classList.add('playing');
-    this.input.setEnabled(true);
     this.input.cx = innerWidth / 2;
     this.input.cy = innerHeight / 2;
-    this.input.lock();
+    this.touch.aim = { x: 1, y: 0 };
+    this.applyControls();
+    if (this.touchMode) this.goLandscape();
     this.lastCountdown = 0;
   }
 
   /** Leaves the match view and returns to the menus with the attract match. */
   private exitMatch(): void {
     if (this.endTimer) clearTimeout(this.endTimer);
-    this.input.setEnabled(false);
-    this.input.unlock();
+    this.setControls(false);
     this.sound.setJet(false);
     document.body.classList.remove('playing');
     this.hud.show(false);
@@ -378,8 +432,7 @@ class App {
   private openPause(): void {
     if (!this.session || this.resultsShown || this.paused) return;
     this.paused = true;
-    this.input.setEnabled(false);
-    this.input.unlock();
+    this.setControls(false);
     this.sound.setJet(false);
     if (this.session instanceof LocalSession) this.session.paused = true;
     $('pause-note').textContent = this.mode === 'online' ? 'The match keeps running for everyone else.' : '';
@@ -392,9 +445,7 @@ class App {
     $('pause').hidden = true;
     $('menus').hidden = true;
     this.paused = false;
-    if (this.session instanceof LocalSession) this.session.paused = false;
-    this.input.setEnabled(true);
-    this.input.lock();
+    this.applyControls();
   }
 
   private openFromPause(screen: 'settings' | 'controls'): void {
@@ -423,8 +474,7 @@ class App {
     const session = this.session;
     if (!session) return;
     this.resultsShown = true;
-    this.input.setEnabled(false);
-    this.input.unlock();
+    this.setControls(false);
     this.sound.setJet(false);
     $('pause').hidden = true;
     $('scoreboard').hidden = true;
@@ -488,9 +538,18 @@ class App {
     const playing = session === this.session;
     session.update(dt, () => {
       const s = this.input.sample();
+      const t = this.touch.sample();
       const sh = session.shoulder();
+      if (this.touchMode && sh && playing) {
+        // The aim stick sets a direction; place the virtual cursor along it so the
+        // crosshair, camera look-ahead and aim all work as they do with a mouse.
+        const p = this.renderer.worldToScreen(sh.x, sh.y);
+        const r = Math.min(innerWidth, innerHeight) * 0.3;
+        this.input.cx = p.x + this.touch.aim.x * r;
+        this.input.cy = p.y - this.touch.aim.y * r;
+      }
       const w = this.renderer.screenToWorld(this.input.cx, this.input.cy);
-      return { b: s.b, mx: s.mx, aim: sh ? Math.atan2(w.y - sh.y, w.x - sh.x) : 0 };
+      return { b: s.b | t.b, mx: t.mx || s.mx, aim: sh ? Math.atan2(w.y - sh.y, w.x - sh.x) : 0 };
     });
     const view = session.view;
     const events = session.drainEvents();

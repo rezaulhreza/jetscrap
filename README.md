@@ -121,6 +121,17 @@ To use your own domain, add a route or custom domain to `wrangler.jsonc` (see th
 
 The game captures the mouse (pointer lock) during a match so the sensitivity setting works. Press `Esc` to release it.
 
+### Phones and tablets
+
+Touch controls appear automatically on touch screens. Matches play in landscape: in portrait, a "Turn your device sideways" screen covers the game, and a solo match waits until you turn the device. On Android, the game also goes fullscreen and locks to landscape. iOS Safari does not allow a web page to lock the orientation, so turn the device by hand.
+
+| Touch | Action |
+| --- | --- |
+| Left thumb | Touch anywhere on the left half and slide. Left and right run; up jumps and fires the jetpack; down drops through platforms. |
+| Right thumb | Touch anywhere on the right half and slide to aim. Slide past the inner ring to shoot. |
+| Grenade, Reload, Swap, Pick up | Buttons in the bottom-right corner. |
+| II, Scores | Pause, and show the scoreboard. |
+
 **Weapons:** Sparrow P9 pistol (always carried, unlimited spare ammunition), Hornet AR assault rifle (the spawn weapon), Mauler 12 shotgun, Longbow sniper rifle and Thumper RL rocket launcher. Dead players drop their gun.
 
 **Pickups:** health (+50), armour (+50, absorbs 60% of damage), ammunition, grenades, Overdrive (50% more damage for 10 s) and Haste (speed and unlimited fuel for 10 s).

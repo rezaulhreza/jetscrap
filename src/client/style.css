@@ -1039,3 +1039,219 @@ table.scores {
     transition: none !important;
   }
 }
+
+/* ---------------------------------------------------------------- touch */
+
+.touch {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.tzone {
+  position: absolute;
+  inset: 0;
+}
+
+.stick {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.stick::before,
+.stick::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Outer ring = full travel. On the aim stick, the inner ring marks where firing starts. */
+.stick::before {
+  width: 112px;
+  height: 112px;
+  border: 2px solid rgba(233, 228, 216, 0.35);
+  background: rgba(20, 24, 29, 0.25);
+}
+
+.stick.aim::after {
+  width: 70px;
+  height: 70px;
+  border: 1px dashed rgba(233, 228, 216, 0.35);
+}
+
+.stick.aim.firing::before {
+  border-color: var(--danger);
+}
+
+.stick i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(233, 228, 216, 0.75);
+  transform: translate(-50%, -50%);
+}
+
+.stick.aim i {
+  background: rgba(242, 181, 48, 0.85);
+}
+
+.tacts {
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 8px;
+}
+
+.touch button {
+  min-width: 64px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid rgba(233, 228, 216, 0.3);
+  background: rgba(20, 24, 29, 0.6);
+  color: var(--chalk);
+  font-family: var(--display);
+  font-size: 1rem;
+  touch-action: none;
+}
+
+.touch button.held {
+  background: var(--paint);
+  color: var(--paint-ink);
+}
+
+.tpause {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left));
+  top: 10px;
+}
+
+.tboard {
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right));
+  top: 10px;
+}
+
+.thint {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 0.8rem;
+  text-align: center;
+  color: var(--chalk-dim);
+  pointer-events: none;
+  animation: thint-out 1s ease 7s forwards;
+}
+
+@keyframes thint-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.rotate-block {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  background: var(--gunmetal);
+  color: var(--paint);
+}
+
+.rotate-block h2 {
+  color: var(--chalk);
+  margin-top: 12px;
+}
+
+/* Matches on touch devices are landscape only. Menus work either way. */
+@media (orientation: portrait) {
+  body.touch.playing .rotate-block {
+    display: grid;
+  }
+}
+
+/* On touch devices the HUD moves to the top edge so thumbs do not cover it. */
+body.touch .vitals {
+  top: 10px;
+  bottom: auto;
+  left: calc(max(10px, env(safe-area-inset-left)) + 64px);
+  width: min(220px, 30vw);
+  gap: 3px;
+}
+
+body.touch .bar {
+  height: 16px;
+}
+
+body.touch .bar b {
+  font-size: 0.85rem;
+}
+
+body.touch .weapon {
+  top: 60px;
+  bottom: auto;
+  right: max(10px, env(safe-area-inset-right));
+  padding: 4px 8px;
+  background: rgba(20, 24, 29, 0.55);
+}
+
+body.touch .ammo b {
+  font-size: 1.9rem;
+}
+
+body.touch .ammo span,
+body.touch .wname {
+  font-size: 0.95rem;
+}
+
+body.touch .loadout {
+  display: none;
+}
+
+body.touch .feed {
+  top: 116px;
+  bottom: auto;
+  right: auto;
+  left: max(10px, env(safe-area-inset-left));
+  justify-items: start;
+  font-size: 0.78rem;
+  max-width: 40vw;
+}
+
+body.touch .feed li:nth-child(n + 4) {
+  display: none;
+}
+
+body.touch .net {
+  display: none;
+}
+
+body.touch .score {
+  font-size: 1.1rem;
+}
+
+body.touch .countdown {
+  font-size: 6rem;
+}
+
+body.touch .centre-msg {
+  font-size: 1.3rem;
+}

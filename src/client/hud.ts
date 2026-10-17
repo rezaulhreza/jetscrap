@@ -44,6 +44,7 @@ export class Hud {
   private killedBy = '';
   private fpsAcc = { t: 0, n: 0 };
   showFps = false;
+  touch = false;
 
   show(on: boolean): void {
     this.root.hidden = !on;
@@ -200,7 +201,7 @@ export class Hud {
       text = `Respawning in ${hud.respawnIn.toFixed(1)}<small>${this.killedBy ? `Taken out by ${esc(this.killedBy)}` : 'Watch your step'}</small>`;
     } else if (hud && me?.alive && hud.primary) {
       const under = view.pickups.find((k) => k.active && k.kind === 'weapon' && k.weapon && k.weapon !== hud.primary && Math.abs(k.x - me.x) < 1 && Math.abs(k.y + 0.5 - (me.y + 0.9)) < 1.4);
-      if (under?.weapon) text = `<small>Press E to swap for the ${esc(WEAPONS[under.weapon].name)}</small>`;
+      if (under?.weapon) text = `<small>${this.touch ? 'Tap Pick up' : 'Press E'} to swap for the ${esc(WEAPONS[under.weapon].name)}</small>`;
     }
     if (msg.innerHTML !== text) msg.innerHTML = text;
 

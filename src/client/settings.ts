@@ -21,7 +21,8 @@ function defaults(): Prefs {
     master: 0.8,
     effects: 0.9,
     sensitivity: 1,
-    quality: 'high',
+    // Phones and tablets start on medium graphics to keep the frame rate up.
+    quality: matchMedia('(pointer: coarse)').matches ? 'medium' : 'high',
     shake: true,
     showFps: false,
     solo: { ...DEFAULT_SETTINGS, team: 0 },

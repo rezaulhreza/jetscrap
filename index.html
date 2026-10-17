@@ -2,7 +2,7 @@
 <html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Jetscrap: a side-view jetpack shooter. Fight bots alone or friends in private rooms." />
     <meta name="theme-color" content="#1e2329" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -99,6 +99,13 @@
           <div><dt><kbd>Tab</kbd></dt><dd>Show the scoreboard</dd></div>
           <div><dt><kbd>Esc</kbd></dt><dd>Pause and settings</dd></div>
         </dl>
+        <h3>On a phone or tablet</h3>
+        <dl class="keys">
+          <div><dt>Left thumb</dt><dd>Touch anywhere on the left half and slide. Left and right run; up jumps and fires the jetpack; down drops through platforms</dd></div>
+          <div><dt>Right thumb</dt><dd>Touch anywhere on the right half and slide to aim. Slide to the outer ring to shoot</dd></div>
+          <div><dt>Buttons</dt><dd>Grenade, Reload, Swap (gun or pistol) and Pick up, on the right edge</dd></div>
+          <div><dt>II and Scores</dt><dd>Pause, and show the scoreboard</dd></div>
+        </dl>
         <p class="hint">Health, armour, ammunition, grenades and power-ups are collected by walking over them. Overdrive gives 50% more damage; Haste gives speed and unlimited fuel. Both last 10 seconds.</p>
         <button class="plate quiet" data-back>Back</button>
       </section>
@@ -137,6 +144,28 @@
       <div id="crosshair" class="crosshair"><i></i><i></i><i></i><i></i><span id="hitmark" class="hitmark"></span></div>
       <div id="dmg-nums"></div>
       <div id="fps" class="fps" hidden></div>
+    </div>
+
+    <!-- Touch controls: floating sticks are placed where the thumbs land. -->
+    <div id="touch" class="touch" hidden>
+      <div class="tzone"></div>
+      <div class="tacts">
+        <button type="button" data-act="grenade">Grenade</button>
+        <button type="button" data-act="reload">Reload</button>
+        <button type="button" data-act="swap">Swap</button>
+        <button type="button" data-act="interact">Pick up</button>
+      </div>
+      <button type="button" class="tpause" data-act="pause" aria-label="Pause">II</button>
+      <button type="button" class="tboard" data-act="board">Scores</button>
+      <p class="thint">Left thumb: move. Push up to jump and fly.<br />Right thumb: aim. Push to the edge to shoot.</p>
+    </div>
+
+    <div id="rotate" class="rotate-block" aria-live="polite">
+      <div>
+        <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><rect x="20" y="6" width="24" height="40" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><path d="M10 52h40" stroke="currentColor" stroke-width="3"/><path d="M44 46l6 6-6 6" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+        <h2>Turn your device sideways</h2>
+        <p class="hint">Jetscrap plays in landscape. A solo match waits until you turn your device.</p>
+      </div>
     </div>
 
     <div id="scoreboard" class="overlay board" hidden>

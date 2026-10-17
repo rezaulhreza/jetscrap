@@ -120,8 +120,10 @@ export class GameRenderer {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     const tan = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+    // Short screens (phones in landscape) zoom in so characters stay readable.
+    const viewHeight = h < 500 ? 19 : VIEW_HEIGHT;
     // Keep a playable view on narrow screens: at least 30 units across.
-    this.cam.dist = Math.max(VIEW_HEIGHT / 2 / tan, 15 / (tan * this.camera.aspect));
+    this.cam.dist = Math.max(viewHeight / 2 / tan, 15 / (tan * this.camera.aspect));
     this.camera.updateProjectionMatrix();
   }
 
