@@ -208,3 +208,45 @@ describe('bots', () => {
     }
   }
 });
+
+describe('bot aim', () => {
+  /** One bot against a scripted target on open ground. The target cannot die. Returns the bot's hit rate. */
+  function hitRate(diff: 'easy' | 'normal' | 'hard' | 'elite', strafe: boolean): number {
+    let shots = 0;
+    let hits = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      const w = new World(settings({ killLimit: 999, timeLimit: 600 }), seed);
+      const h = w.addPlayer({ name: 'Target' })!;
+      const b = w.addPlayer({ name: 'Bot', bot: diff })!;
+      run(w, 3.4);
+      Object.assign(h, { x: 20, y: 2, vx: 0, vy: 0 });
+      Object.assign(b, { x: 32, y: 2, vx: 0, vy: 0, protect: 0 });
+      for (let t = 0; t < 10 * TICK_RATE; t++) {
+        Object.assign(h, { hp: 100, protect: 0, alive: true });
+        const mx = strafe ? (Math.floor(t / 40) % 2 ? 1 : -1) : 0;
+        const hop = strafe && t % 90 < 20 ? Btn.Up : 0;
+        w.setInput(h.id, { seq: t, b: hop, mx, aim: 0 });
+        h.x = Math.min(26, Math.max(16, h.x));
+        w.step();
+        for (const e of w.drainEvents()) {
+          if (e.k === 'bullet' && e.p === b.id) shots++;
+          if (e.k === 'hit' && e.by === b.id && e.p === h.id) hits++;
+        }
+      }
+    }
+    return hits / Math.max(1, shots);
+  }
+
+  it('misses a strafing player most of the time below elite', () => {
+    expect(hitRate('easy', true)).toBeLessThan(0.3);
+    expect(hitRate('normal', true)).toBeLessThan(0.4);
+    expect(hitRate('hard', true)).toBeLessThan(0.45);
+  });
+
+  it('gets more accurate with difficulty', () => {
+    const easy = hitRate('easy', false);
+    const elite = hitRate('elite', false);
+    expect(easy).toBeLessThan(0.6);
+    expect(elite).toBeGreaterThan(easy + 0.15);
+  });
+});

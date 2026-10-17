@@ -8,8 +8,10 @@ import { WEAPONS } from './weapons';
 interface Profile {
   /** Seconds before firing at a newly spotted target. */
   reaction: [number, number];
-  /** Aim error half-angle in radians. */
-  aimError: number;
+  /** Half-width of the drifting aim error, in world units, at right angles to the line of fire. */
+  aimSpread: number;
+  /** Bots aim at where the target was this many seconds ago, so strafing makes them miss. */
+  trackLag: number;
   /** Aim turn speed in radians per second. */
   turn: number;
   vision: number;
@@ -25,10 +27,10 @@ interface Profile {
 }
 
 export const PROFILES: Record<Difficulty, Profile> = {
-  easy: { reaction: [0.55, 0.85], aimError: 0.17, turn: 4.5, vision: 22, aggression: 0.35, dodge: 0.08, lead: 0, grenade: 0.03, memory: 2.5 },
-  normal: { reaction: [0.32, 0.52], aimError: 0.095, turn: 7.5, vision: 26, aggression: 0.55, dodge: 0.25, lead: 0.4, grenade: 0.07, memory: 4 },
-  hard: { reaction: [0.2, 0.32], aimError: 0.055, turn: 11, vision: 30, aggression: 0.7, dodge: 0.5, lead: 0.75, grenade: 0.11, memory: 6 },
-  elite: { reaction: [0.12, 0.2], aimError: 0.032, turn: 16, vision: 34, aggression: 0.82, dodge: 0.75, lead: 1, grenade: 0.15, memory: 8 },
+  easy: { reaction: [0.55, 0.85], aimSpread: 2.3, trackLag: 0.32, turn: 4.5, vision: 22, aggression: 0.35, dodge: 0.08, lead: 0, grenade: 0.03, memory: 2.5 },
+  normal: { reaction: [0.32, 0.52], aimSpread: 1.65, trackLag: 0.22, turn: 7.5, vision: 26, aggression: 0.55, dodge: 0.25, lead: 0.4, grenade: 0.07, memory: 4 },
+  hard: { reaction: [0.2, 0.32], aimSpread: 1.25, trackLag: 0.15, turn: 11, vision: 30, aggression: 0.7, dodge: 0.5, lead: 0.75, grenade: 0.11, memory: 6 },
+  elite: { reaction: [0.12, 0.2], aimSpread: 1.0, trackLag: 0.09, turn: 16, vision: 34, aggression: 0.82, dodge: 0.75, lead: 1, grenade: 0.15, memory: 8 },
 };
 
 export const BOT_NAMES = ['Rivet', 'Sprocket', 'Cinder', 'Gasket', 'Torque', 'Flux', 'Ballast', 'Ratchet', 'Piston', 'Solder', 'Dynamo'];
@@ -59,8 +61,13 @@ export class BotBrain {
   private lastSeen = { x: 0, y: 0, t: -99 };
   private reactionLeft = 0;
   private aim = 0;
-  private aimNoise = 0;
-  private aimNoiseTarget = 0;
+  /** Recent target positions, newest last, for lagged tracking. */
+  private history: { x: number; y: number; vx: number; vy: number }[] = [];
+  private acquiredAt = 0;
+  /** Aim error at right angles to the line of fire. Error along the line would not cause a miss. */
+  private offset = 0;
+  private offsetTarget = 0;
+  private nextOffsetAt = 0;
   private goal: { x: number; y: number } | null = null;
   private path: Waypoint[] = [];
   private repathAt = 0;
@@ -116,22 +123,24 @@ export class BotBrain {
     const visible = !!target && target.alive && this.canSee(world, p, target);
     let desired = this.aim;
     if (target && visible) {
+      this.history.push({ x: target.x, y: target.y, vx: target.vx, vy: target.vy });
+      if (this.history.length > 40) this.history.shift();
+      this.updateOffset(p, target, now);
       desired = this.aimAt(p, target);
     } else if (this.state === 'hunt') {
       desired = Math.atan2(this.lastSeen.y + 1 - (p.y + SHOULDER_Y), this.lastSeen.x - p.x);
     } else if (Math.abs(p.vx) > 0.5) {
       desired = p.vx > 0 ? 0 : Math.PI;
     }
-    this.aimNoise += (this.aimNoiseTarget - this.aimNoise) * Math.min(1, DT * 4);
     const maxTurn = this.profile.turn * DT;
-    this.aim += Math.max(-maxTurn, Math.min(maxTurn, angleDiff(desired + this.aimNoise, this.aim)));
+    this.aim += Math.max(-maxTurn, Math.min(maxTurn, angleDiff(desired, this.aim)));
     if (this.aim > Math.PI) this.aim -= Math.PI * 2;
     if (this.aim < -Math.PI) this.aim += Math.PI * 2;
 
     if (target && visible && this.reactionLeft <= 0 && world.match.phase === 'live') {
       const w = WEAPONS[(p.slot === 0 && p.primary ? p.primary : p.secondary).id];
       const dist = Math.hypot(target.x - p.x, target.y - p.y);
-      const onTarget = Math.abs(angleDiff(this.aim, desired)) < 0.12 + w.spread + this.profile.aimError;
+      const onTarget = Math.abs(angleDiff(this.aim, desired)) < 0.1 + w.spread;
       const inRange = dist < w.range[2] * 1.15;
       // Lower difficulties fire the rifle in bursts.
       if (now > this.burstUntil && now > this.pauseUntil) {
@@ -177,19 +186,40 @@ export class BotBrain {
     return noisy && Math.hypot(t.x - p.x, t.y - p.y) < 18;
   }
 
+  /**
+   * Aims like a person: at where the target was a moment ago (reaction lag), plus a
+   * drifting error offset, with partial leading on higher difficulties.
+   */
   private aimAt(p: Player, t: Player): number {
     const sx = p.x;
     const sy = p.y + SHOULDER_Y;
-    let tx = t.x;
-    let ty = t.y + 1.05;
+    const lagTicks = Math.round(this.profile.trackLag / DT);
+    const seen = this.history[Math.max(0, this.history.length - 1 - lagTicks)] ?? t;
+    const lx = seen.x - sx;
+    const ly = seen.y + 1.05 - sy;
+    const dist = Math.hypot(lx, ly) || 1;
+    let tx = seen.x - (ly / dist) * this.offset;
+    let ty = seen.y + 1.05 + (lx / dist) * this.offset;
     const w = WEAPONS[(p.slot === 0 && p.primary ? p.primary : p.secondary).id];
-    const dist = Math.hypot(tx - sx, ty - sy);
     const travel = dist / w.speed;
-    tx += t.vx * travel * this.profile.lead;
-    ty += t.vy * travel * this.profile.lead * 0.5;
+    tx += seen.vx * travel * this.profile.lead;
+    ty += seen.vy * travel * this.profile.lead * 0.5;
     // Rockets aim at the feet for splash.
-    if (w.id === 'rocket' && t.grounded) ty = t.y + 0.2;
+    if (w.id === 'rocket' && t.grounded) ty = seen.y + 0.2 + (lx / dist) * this.offset * 0.5;
     return Math.atan2(ty - sy, tx - sx);
+  }
+
+  /** Moves the aim error towards a new random point every fraction of a second. */
+  private updateOffset(p: Player, t: Player, now: number): void {
+    if (now >= this.nextOffsetAt) {
+      const speed = Math.hypot(t.vx, t.vy);
+      // Aim is worse just after spotting a target, against fast targets and while airborne.
+      const settle = 1 + Math.max(0, 1 - (now - this.acquiredAt) / 1.2);
+      const r = this.profile.aimSpread * this.accuracy * (1 + speed * 0.04) * (p.grounded ? 1 : 1.35) * settle;
+      this.offsetTarget = (this.rand() * 2 - 1) * r;
+      this.nextOffsetAt = now + 0.25 + this.rand() * 0.3;
+    }
+    this.offset += (this.offsetTarget - this.offset) * Math.min(1, DT * 6);
   }
 
   // ------------------------------------------------------------ decisions
@@ -220,17 +250,15 @@ export class BotBrain {
         const [lo, hi] = prof.reaction;
         this.reactionLeft = lo + this.rand() * (hi - lo);
         this.targetId = best.id;
+        this.acquiredAt = now;
+        this.history = [];
       }
       this.lastSeen = { x: best.x, y: best.y, t: now };
     } else if (now - this.lastSeen.t > prof.memory) {
       this.targetId = 0;
     }
 
-    // Aim wobble scales with difficulty, distance and target speed.
     const tgt = this.targetId ? world.players.get(this.targetId) : undefined;
-    const tSpeed = tgt ? Math.hypot(tgt.vx, tgt.vy) : 0;
-    const err = prof.aimError * this.accuracy * (1 + tSpeed * 0.05) * (p.jetting ? 1.3 : 1);
-    this.aimNoiseTarget = (this.rand() * 2 - 1) * err;
 
     // State selection.
     const visibleTarget = !!best && this.canSee(world, p, best);
