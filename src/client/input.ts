@@ -74,7 +74,7 @@ export class Input {
     this.latched = 0;
     if (h.has('KeyW') || h.has('Space') || h.has('ArrowUp')) b |= Btn.Up;
     if (h.has('KeyS') || h.has('ArrowDown')) b |= Btn.Down;
-    if (this.mouseFire) b |= Btn.Fire;
+    if (this.mouseFire || h.has('KeyF')) b |= Btn.Fire;
     const left = h.has('KeyA') || h.has('ArrowLeft');
     const right = h.has('KeyD') || h.has('ArrowRight');
     return { b, mx: (right ? 1 : 0) - (left ? 1 : 0) };
@@ -112,6 +112,7 @@ export class Input {
       if (e.code === 'KeyQ') this.latched |= Btn.Swap;
       if (e.code === 'KeyE') this.latched |= Btn.Interact;
       if (e.code === 'KeyG') this.latched |= Btn.Grenade;
+      if (e.code === 'KeyF') this.latched |= Btn.Fire;
       if (e.code === 'KeyW' || e.code === 'Space' || e.code === 'ArrowUp') this.latched |= Btn.Up;
     } else {
       this.held.delete(e.code);

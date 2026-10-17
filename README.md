@@ -111,7 +111,7 @@ To use your own domain, add a route or custom domain to `wrangler.jsonc` (see th
 | `W` or `Space` | Jump; hold in the air to fire the jetpack |
 | `S` | Drop through thin platforms |
 | Mouse | Aim |
-| Left click | Shoot (hold for automatic fire) |
+| Left click or `F` | Shoot (hold for automatic fire). `F` helps on a laptop touchpad: the touchpad aims and the left hand shoots. |
 | Right click or `G` | Throw a grenade |
 | `R` | Reload |
 | `Q` or mouse wheel | Switch between your gun and pistol |
