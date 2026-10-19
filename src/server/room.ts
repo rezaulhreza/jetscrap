@@ -1,4 +1,4 @@
-import { Btn, DT, MAX_HUMANS, MAX_PLAYERS, SNAPSHOT_EVERY } from '../shared/constants';
+import { Btn, DT, INPUTS_PER_MESSAGE, MAX_HUMANS, MAX_PLAYERS, SNAPSHOT_EVERY } from '../shared/constants';
 import { capturePredicted } from '../shared/player';
 import {
   cleanName, encodePickup, encodePlayer, packJson, readInput,
@@ -281,9 +281,13 @@ export class Room {
       steps++;
       for (const m of this.members.values()) {
         if (!m.playerId) continue;
-        // Catch up when the queue builds; repeat the held buttons when it runs dry.
+        // Catch up when the queue builds past one message plus jitter; repeat the held
+        // buttons when it runs dry. A skipped input keeps its one-shot presses.
         let input = m.queue.shift();
-        if (input && m.queue.length > 3) input = m.queue.shift() ?? input;
+        if (input && m.queue.length > INPUTS_PER_MESSAGE + 2) {
+          const next = m.queue.shift()!;
+          input = { ...next, b: next.b | (input.b & (Btn.Grenade | Btn.Reload | Btn.Swap | Btn.Interact)) };
+        }
         if (input) {
           m.last = input;
           m.ack = input.seq;

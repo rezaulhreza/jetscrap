@@ -1,4 +1,4 @@
-import { DT, SHOULDER_Y, TICK_RATE } from '../shared/constants';
+import { DT, INPUTS_PER_MESSAGE, SHOULDER_Y, TICK_RATE } from '../shared/constants';
 import { getMap } from '../shared/maps';
 import { applyPredicted, newPlayer, stepPlayer, type PlayerCtx } from '../shared/player';
 import {
@@ -326,7 +326,7 @@ export class NetSession implements Session {
       this.outbox.push([input.seq, input.b, input.mx, Math.round(input.aim * 1000) / 1000]);
       if (this.havePred) stepPlayer(this.pred, input, this.liveCtx);
     }
-    if (this.outbox.length >= 2) {
+    if (this.outbox.length >= INPUTS_PER_MESSAGE) {
       this.net.send({ t: 'in', i: this.outbox });
       this.outbox = [];
     }

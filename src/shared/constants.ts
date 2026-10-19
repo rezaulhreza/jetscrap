@@ -5,6 +5,8 @@ export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
 /** The server sends a snapshot every N ticks (20 Hz). */
 export const SNAPSHOT_EVERY = 3;
+/** Inputs per client message (20 messages per second). Fewer messages keep server costs down. */
+export const INPUTS_PER_MESSAGE = 3;
 
 export const PLAYER_W = 0.8;
 export const PLAYER_H = 1.8;
